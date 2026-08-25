@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>追线模拟</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: #f5f7fb;
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 1180px;
+            width: 100%;
+            background: white;
+            border-radius: 28px;
+            padding: 22px 28px 30px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.07);
+        }
+        h2 {
+            margin-top: 0;
+            font-weight: 500;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        h2 small { font-size: 15px; font-weight: 400; color: #64748b; }
+        .grid {
+            display: grid;
+            grid-template-columns: 275px 1fr;
+            gap: 22px;
+            margin-top: 6px;
+        }
+        .panel {
+            background: #f8fafc;
+            border-radius: 18px;
+            padding: 14px 14px 20px;
+            border: 1px solid #e9edf2;
+        }
+        .param-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .param-item {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px 6px;
+        }
+        .param-item label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            min-width: 42px;
+        }
+        .param-item input {
+            width: 54px;
+            padding: 4px 6px;
+            border: 1px solid #d1d9e6;
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+            text-align: center;
+        }
+        .param-item input:focus {
+            border-color: #3b82f6;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        }
+        .speed-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .speed-row .param-item { flex: 1; min-width: 62px; }
+        .btn-group { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+        .btn {
+            border: none;
+            border-radius: 60px;
+            padding: 7px 14px;
+            font-weight: 550;
+            font-size: 13px;
+            background: white;
+            cursor: pointer;
+            border: 1px solid #dce2ec;
+            color: #1e293b;
+            flex: 1;
+            min-width: 40px;
+            transition: 0.15s;
+        }
+        .btn-primary { background: #2563eb; border-color: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-secondary { background: #f1f5f9; }
+        .btn-secondary:hover { background: #e6edf5; }
+        .btn-danger { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+        .btn-danger:hover { background: #fecaca; }
+        .canvas-wrapper {
+            background: #ffffff;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid #eef2f6;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1 / 1;
+            background: #ffffff;
+        }
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #475569;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .status-badge {
+            background: #eef2ff;
+            padding: 2px 14px;
+            border-radius: 36px;
+            font-weight: 450;
+            color: #4338ca;
+        }
+        .formula-result {
+            background: #f1f5f9;
+            border-radius: 14px;
+            padding: 8px 12px;
+            margin-top: 10px;
+            border-left: 4px solid #3b82f6;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .formula-result .label { font-weight: 500; color: #0f172a; }
+        .formula-result .value { font-weight: 700; color: #1d4ed8; font-size: 17px; }
+        .formula-result .detail { font-size: 11px; color: #64748b; }
+        .legend {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .legend span::before { content: "●"; margin-right: 4px; font-size: 16px; vertical-align: middle; }
+        .legend .p-color::before { content: "●"; color: #dc2626; }
+        .legend .q-color::before { content: "●"; color: #2563eb; }
+        .legend .trail-p::before { content: "—"; color: #dc2626; font-weight: bold; font-size: 18px; }
+        .footnote {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #6b7280;
+            text-align: center;
+            border-top: 1px solid #ecf1f7;
+            padding-top: 12px;
+        }
+        @media (max-width: 790px) {
+            .grid { grid-template-columns: 1fr; }
+            .container { padding: 14px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>
+        追线模拟
+        <small>by Temi200</small>
+    </h2>
+    <div class="grid">
+        <div class="panel">
+            <div style="font-weight: 600; margin-bottom: 8px; color: #0f172a; font-size: 15px;">初始位置 & 参数</div>
+            <div class="param-group">
+                <div class="param-item">
+                    <label>P (x₁, y₁)</label>
+                    <input type="number" id="px1" value="-3" step="0.2">
+                    <input type="number" id="py1" value="-2" step="0.2">
+                </div>
+                <div class="param-item">
+                    <label>Q (x₂, y₂)</label>
+                    <input type="number" id="qx2" value="4" step="0.2">
+                    <input type="number" id="qy2" value="3" step="0.2">
+                </div>
+                <hr style="border: none; border-top: 1px dashed #dce2ec; margin: 2px 0;">
+                <div class="param-item" style="justify-content: flex-start; gap: 6px;">
+                    <label style="min-width: unset;">α (Q方向)</label>
+                    <input type="number" id="alphaDeg" value="90" step="5" style="width: 50px;"> <span style="font-size:12px; color:#475569;">°</span>
+                </div>
+                <div class="speed-row">
+                    <div class="param-item">
+                        <label>v₁</label>
+                        <input type="number" id="v1" value="0.8" step="0.05" style="width: 52px;">
+                    </div>
+                    <div class="param-item">
+                        <label>v₂</label>
+                        <input type="number" id="v2" value="1.4" step="0.05" style="width: 52px;">
+                    </div>
+                </div>
+                <div style="font-size: 11px; color: #64748b;">* v₂ > v₁ 才能追上</div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" id="startBtn">▶ 开始</button>
+                <button class="btn btn-secondary" id="pauseBtn">⏸ 暂停</button>
+                <button class="btn btn-danger" id="resetBtn">⟲ 重置</button>
+            </div>
+            <div class="info-bar" style="padding: 2px 0 0;">
+                <span>时间 <strong id="timeDisplay">0.00</strong> s</span>
+                <span class="status-badge" id="statusBadge">就绪</span>
+            </div>
+
+            <div class="formula-result" id="formulaBox">
+                <div class="label">📐 公式估算相遇时间</div>
+                <div class="value" id="formulaTime">—</div>
+                <div class="detail" id="formulaDetail">等待输入</div>
+            </div>
+        </div>
+
+        <div class="canvas-wrapper">
+            <canvas id="canvas" width="800" height="800"></canvas>
+        </div>
+    </div>
+    <div class="legend">
+        <span class="p-color"> P (追逐者)</span>
+        <span class="q-color"> Q (目标)</span>
+        <span class="trail-p"> P 轨迹</span>
+        <span style="color:#94a3b8;">| 网格间距 1 单位</span>
+    </div>
+    <div class="footnote">
+        💡 所有数据实时更新 · 速度方向已修正
+    </div>
+</div>
+
+<script>
+    (function() {
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const px1 = document.getElementById('px1');
+        const py1 = document.getElementById('py1');
+        const qx2 = document.getElementById('qx2');
+        const qy2 = document.getElementById('qy2');
+        const alphaDeg = document.getElementById('alphaDeg');
+        const v1Input = document.getElementById('v1');
+        const v2Input = document.getElementById('v2');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const statusBadge = document.getElementById('statusBadge');
+        const formulaTime = document.getElementById('formulaTime');
+        const formulaDetail = document.getElementById('formulaDetail');
+
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        function readFloat(id, fallback) {
+            const val = parseFloat(document.getElementById(id).value);
+            return isNaN(val) ? fallback : val;
+        }
+
+        let animId = null;
+        let running = false;
+        let paused = false;
+        const WORLD_SIZE = 10;
+
+        let state = {
+            p: { x: -3, y: -2 },
+            qInit: { x: 4, y: 3 },
+            v1: 0.8,
+            v2: 1.4,
+            alphaRad: 90 * Math.PI / 180,
+            time: 0,
+            trail: [],
+            finished: false,
+            meetPoint: null,
+        };
+
+        function getCurrentQ() {
+            const qix = state.qInit.x;
+            const qiy = state.qInit.y;
+            const v1 = state.v1;
+            const alpha = state.alphaRad;
+            return {
+                x: qix + v1 * Math.cos(alpha) * state.time,
+                y: qiy + v1 * Math.sin(alpha) * state.time
+            };
+        }
+
+        function computeBeta() {
+            const p = state.p;
+            const q = getCurrentQ();
+            const betaStd = Math.atan2(q.y - p.y, q.x - p.x);
+            return Math.PI - betaStd;
+        }
+
+        function computeFormulaTime() {
+            const x1 = readFloat('px1', -3);
+            const y1 = readFloat('py1', -2);
+            const x2 = readFloat('qx2', 4);
+            const y2 = readFloat('qy2', 3);
+            const v1 = readFloat('v1', 0.8);
+            const v2 = readFloat('v2', 1.4);
+            const alpha = readFloat('alphaDeg', 90) * Math.PI / 180;
+            const dx = x1 - x2;
+            const dy = y1 - y2;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            const betaStd = Math.atan2(y2 - y1, x2 - x1);
+            const beta = Math.PI - betaStd;
+            const denom = v2*v2 - v1*v1;
+            if (Math.abs(denom) < 1e-12 || v2 <= v1) {
+                return { t: null, betaDeg: beta * 180 / Math.PI, d: d, valid: false };
+            }
+            const numerator = (v2 - v1 * Math.cos(alpha + beta)) * d;
+            const t = numerator / denom;
+            return { t: t, betaDeg: beta * 180 / Math.PI, d: d, valid: t > 0 };
+        }
+
+        function updateFormulaDisplay() {
+            const result = computeFormulaTime();
+            if (result.valid && result.t !== null) {
+                formulaTime.textContent = result.t.toFixed(4) + ' s';
+                formulaDetail.textContent = `β₀ = ${result.betaDeg.toFixed(1)}°,  d₀ = ${result.d.toFixed(3)}`;
+            } else {
+                formulaTime.textContent = '⚠️ 无效';
+                if (readFloat('v2', 1.4) <= readFloat('v1', 0.8)) {
+                    formulaDetail.textContent = '需要 v₂ > v₁';
+                } else {
+                    formulaDetail.textContent = '参数导致 t ≤ 0';
+                }
+            }
+        }
+
+        function syncStateFromInputs() {
+            state.p.x = readFloat('px1', -3);
+            state.p.y = readFloat('py1', -2);
+            state.qInit.x = readFloat('qx2', 4);
+            state.qInit.y = readFloat('qy2', 3);
+            state.v1 = readFloat('v1', 0.8);
+            state.v2 = readFloat('v2', 1.4);
+            state.alphaRad = readFloat('alphaDeg', 90) * Math.PI / 180;
+        }
+
+        function fullReset() {
+            if (animId) { cancelAnimationFrame(animId); animId = null; }
+            running = false; paused = false;
+            syncStateFromInputs();
+            state.time = 0;
+            state.trail = [{ x: state.p.x, y: state.p.y }];
+            state.finished = false;
+            state.meetPoint = null;
+            timeDisplay.textContent = '0.00';
+            statusBadge.textContent = '就绪';
+            statusBadge.style.background = '#eef2ff';
+            statusBadge.style.color = '#4338ca';
+            updateFormulaDisplay();
+            drawCanvas();
+        }
+
+        function updatePhysics(dt) {
+            if (state.finished) return;
+            const p = state.p;
+            const q = getCurrentQ();
+            const v2 = state.v2;
+            const maxDt = 0.035;
+            if (dt > maxDt) dt = maxDt;
+            const dx = q.x - p.x, dy = q.y - p.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const MEET = 0.018;
+            if (dist < MEET) {
+                state.finished = true;
+                state.meetPoint = { x: p.x, y: p.y };
+                statusBadge.textContent = '✅ 相遇';
+                statusBadge.style.background = '#d1fae5';
+                statusBadge.style.color = '#065f46';
+                return;
+            }
+            if (dist < 1e-12) return;
+            const ux = dx / dist, uy = dy / dist;
+            state.p.x += v2 * ux * dt;
+            state.p.y += v2 * uy * dt;
+            state.time += dt;
+            state.trail.push({ x: state.p.x, y: state.p.y });
+            if (state.trail.length > 24000) state.trail = state.trail.slice(-18000);
+            timeDisplay.textContent = state.time.toFixed(2);
+        }
+
+        function drawCanvas() {
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = '#fcfdff';
+            ctx.fillRect(0, 0, w, h);
+
+            const range = WORLD_SIZE;
+            const scale = w / (range * 2);
+            const ox = w / 2, oy = h / 2;
+            const toC = (wx, wy) => [ox + wx * scale, oy - wy * scale];
+
+            // 网格
+            ctx.strokeStyle = '#e9edf4';
+            ctx.lineWidth = 0.7;
+            for (let i = -Math.floor(range); i <= Math.floor(range); i++) {
+                if (i === 0) continue;
+                const [cx] = toC(i, 0);
+                const [, cy] = toC(0, i);
+                ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
+            }
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.4;
+            const [zx, zy] = toC(0, 0);
+            ctx.beginPath(); ctx.moveTo(zx, 0); ctx.lineTo(zx, h); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, zy); ctx.lineTo(w, zy); ctx.stroke();
+
+            // 当前数据
+            const p = state.p;
+            const q = getCurrentQ();
+            const d = Math.sqrt((p.x - q.x)*(p.x - q.x) + (p.y - q.y)*(p.y - q.y));
+            const betaVal = computeBeta();
+            const alphaVal = state.alphaRad;
+
+            const [pCx, pCy] = toC(p.x, p.y);
+            const [qCx, qCy] = toC(q.x, q.y);
+
+            // 轨迹
+            if (state.trail.length > 1) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#dc2626';
+                ctx.lineWidth = 2.0;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+                const [sx, sy] = toC(state.trail[0].x, state.trail[0].y);
+                ctx.moveTo(sx, sy);
+                for (let i = 1; i < state.trail.length; i++) {
+                    const [cx, cy] = toC(state.trail[i].x, state.trail[i].y);
+                    ctx.lineTo(cx, cy);
+                }
+                ctx.stroke();
+            }
+
+            // --- β 角 (顶点在P，从x负半轴顺时针到PQ方向) ---
+            const betaStart = Math.PI;
+            const betaEnd = Math.atan2(q.y - p.y, q.x - p.x);
+            const betaRadius = 38;
+            ctx.save();
+            ctx.strokeStyle = '#059669';
+            ctx.lineWidth = 2;
+            const e1Len = 50;
+            ctx.beginPath();
+            ctx.moveTo(pCx, pCy);
+            ctx.lineTo(pCx + e1Len * Math.cos(betaStart), pCy + e1Len * Math.sin(betaStart));
+            ctx.stroke();
+            const e2Len = Math.min(50, d * scale * 0.45);
+            ctx.beginPath();
+            ctx.moveTo(pCx, pCy);
+            ctx.lineTo(pCx + e2Len * Math.cos(betaEnd), pCy + e2Len * Math.sin(betaEnd));
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(pCx, pCy, betaRadius, betaStart, betaEnd, false);
+            ctx.stroke();
+            ctx.restore();
+            const bMid = (betaStart + betaEnd) / 2;
+            const bLx = pCx + (betaRadius + 14) * Math.cos(bMid);
+            const bLy = pCy + (betaRadius + 14) * Math.sin(bMid);
+            ctx.fillStyle = '#059669';
+            ctx.font = 'bold 16px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('β', bLx, bLy);
+
+            // --- α 角 (顶点在Q，从x正半轴逆时针到速度方向) ---
+            const alphaStart = 0;
+            const alphaEnd = alphaVal;
+            const alphaRadius = 36;
+            ctx.save();
+            ctx.strokeStyle = '#7c3aed';
+            ctx.lineWidth = 2;
+            const a1Len = 48;
+            ctx.beginPath();
+            ctx.moveTo(qCx, qCy);
+            ctx.lineTo(qCx + a1Len * Math.cos(alphaStart), qCy + a1Len * Math.sin(alphaStart));
+            ctx.stroke();
+            const a2Len = 48;
+            ctx.beginPath();
+            ctx.moveTo(qCx, qCy);
+            ctx.lineTo(qCx + a2Len * Math.cos(alphaEnd), qCy + a2Len * Math.sin(alphaEnd));
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(qCx, qCy, alphaRadius, alphaStart, alphaEnd, false);
+            ctx.stroke();
+            ctx.restore();
+            const aMid = (alphaStart + alphaEnd) / 2;
+            const aLx = qCx + (alphaRadius + 14) * Math.cos(aMid);
+            const aLy = qCy + (alphaRadius + 14) * Math.sin(aMid);
+            ctx.fillStyle = '#7c3aed';
+            ctx.font = 'bold 16px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('α', aLx, aLy);
+
+            // --- d 连线 (虚线) ---
+            ctx.save();
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath(); ctx.moveTo(pCx, pCy); ctx.lineTo(qCx, qCy); ctx.stroke();
+            ctx.restore();
+            const midX = (pCx + qCx) / 2, midY = (pCy + qCy) / 2;
+            ctx.fillStyle = '#d97706';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('d = ' + d.toFixed(2), midX, midY - 6);
+
+            // --- Q速度箭头 (沿α方向) ---
+            // 注意：canvas y轴向下，但数学中y向上，所以sin要取反
+            const arrLen = 30;
+            const aEndX = qCx + arrLen * Math.cos(alphaVal);
+            const aEndY = qCy - arrLen * Math.sin(alphaVal);  // y取反
+            ctx.save();
+            ctx.strokeStyle = '#7c3aed';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(qCx, qCy); ctx.lineTo(aEndX, aEndY); ctx.stroke();
+            const hl = 10, ha = 0.45;
+            const ang = Math.atan2(-Math.sin(alphaVal), Math.cos(alphaVal));
+            ctx.beginPath();
+            ctx.moveTo(aEndX, aEndY);
+            ctx.lineTo(aEndX - hl * Math.cos(ang - ha), aEndY - hl * Math.sin(ang - ha));
+            ctx.moveTo(aEndX, aEndY);
+            ctx.lineTo(aEndX - hl * Math.cos(ang + ha), aEndY - hl * Math.sin(ang + ha));
+            ctx.stroke();
+            ctx.restore();
+            ctx.fillStyle = '#7c3aed';
+            ctx.font = 'italic 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('v₁', aEndX + 16 * Math.cos(ang), aEndY + 16 * Math.sin(ang));
+
+            // --- P速度箭头 (指向Q) ---
+            if (!state.finished && state.trail.length > 1) {
+                const qNow = q;
+                const dxNow = qNow.x - p.x, dyNow = qNow.y - p.y;
+                const distNow = Math.sqrt(dxNow*dxNow + dyNow*dyNow);
+                if (distNow > 0.01) {
+                    const uxNow = dxNow / distNow, uyNow = dyNow / distNow;
+                    const pArrLen = 28;
+                    // canvas坐标中y取反
+                    const pEndX = pCx + pArrLen * uxNow;
+                    const pEndY = pCy - pArrLen * uyNow;
+                    ctx.save();
+                    ctx.strokeStyle = '#dc2626';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath(); ctx.moveTo(pCx, pCy); ctx.lineTo(pEndX, pEndY); ctx.stroke();
+                    const phl = 9, pha = 0.45;
+                    const pang = Math.atan2(-uyNow, uxNow);
+                    ctx.beginPath();
+                    ctx.moveTo(pEndX, pEndY);
+                    ctx.lineTo(pEndX - phl * Math.cos(pang - pha), pEndY - phl * Math.sin(pang - pha));
+                    ctx.moveTo(pEndX, pEndY);
+                    ctx.lineTo(pEndX - phl * Math.cos(pang + pha), pEndY - phl * Math.sin(pang + pha));
+                    ctx.stroke();
+                    ctx.restore();
+                    ctx.fillStyle = '#dc2626';
+                    ctx.font = 'italic 14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('v₂', pEndX + 16 * Math.cos(pang), pEndY + 16 * Math.sin(pang));
+                }
+            }
+
+            // P 点
+            ctx.shadowColor = 'rgba(220,38,38,0.25)';
+            ctx.shadowBlur = 14;
+            ctx.beginPath(); ctx.fillStyle = '#dc2626'; ctx.arc(pCx, pCy, 9, 0, 2*Math.PI); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = 'white'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            ctx.fillText('P', pCx, pCy - 14);
+
+            // Q 点
+            ctx.shadowColor = 'rgba(37,99,235,0.25)';
+            ctx.shadowBlur = 14;
+            ctx.beginPath(); ctx.fillStyle = '#2563eb'; ctx.arc(qCx, qCy, 9, 0, 2*Math.PI); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = 'white'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            ctx.fillText('Q', qCx, qCy - 14);
+
+            // 相遇标记
+            if (state.finished && state.meetPoint) {
+                const [mx, my] = toC(state.meetPoint.x, state.meetPoint.y);
+                ctx.beginPath(); ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 3;
+                ctx.setLineDash([6, 8]); ctx.arc(mx, my, 16, 0, 2*Math.PI); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                ctx.fillText('✦ 相遇', mx, my + 18);
+            }
+
+            // 实时坐标
+            ctx.fillStyle = '#1e293b'; ctx.font = '12px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+            ctx.fillText(`P (${p.x.toFixed(2)}, ${p.y.toFixed(2)})`, 12, 12);
+            ctx.fillStyle = '#2563eb';
+            ctx.fillText(`Q (${q.x.toFixed(2)}, ${q.y.toFixed(2)})`, 12, 29);
+        }
+
+        let lastTs = 0;
+        function animate(ts) {
+            if (!running) return;
+            if (paused) { animId = requestAnimationFrame(animate); return; }
+            if (lastTs === 0) lastTs = ts;
+            let dt = (ts - lastTs) / 1000;
+            if (dt > 0.030) dt = 0.016;
+            if (dt < 0.002) dt = 0.014;
+            lastTs = ts;
+            const steps = 3;
+            const sub = dt / steps;
+            for (let i = 0; i < steps; i++) { updatePhysics(sub); if (state.finished) break; }
+            drawCanvas();
+            updateFormulaDisplay();
+            if (!state.finished) { animId = requestAnimationFrame(animate); }
+            else { running = false; animId = null; drawCanvas(); updateFormulaDisplay(); }
+        }
+
+        function startSimulation() {
+            if (running && !paused) return;
+            if (state.finished) { fullReset(); syncStateFromInputs(); state.trail = [{ x: state.p.x, y: state.p.y }]; drawCanvas(); }
+            if (!running) {
+                if (paused) { paused = false; lastTs = 0; animId = requestAnimationFrame(animate); return; }
+                if (state.trail.length === 0) state.trail.push({ x: state.p.x, y: state.p.y });
+                running = true; paused = false; lastTs = 0;
+                statusBadge.textContent = '🏃 追逐中';
+                statusBadge.style.background = '#eef2ff'; statusBadge.style.color = '#4338ca';
+                animId = requestAnimationFrame(animate);
+            }
+        }
+
+        function pauseSimulation() {
+            if (!running) return;
+            paused = !paused;
+            if (paused) {
+                statusBadge.textContent = '已暂停';
+                statusBadge.style.background = '#fff3cd'; statusBadge.style.color = '#856404';
+            } else {
+                statusBadge.textContent = '运行中';
+                statusBadge.style.background = '#eef2ff'; statusBadge.style.color = '#4338ca';
+                lastTs = 0;
+            }
+        }
+
+        startBtn.addEventListener('click', startSimulation);
+        pauseBtn.addEventListener('click', pauseSimulation);
+        resetBtn.addEventListener('click', fullReset);
+
+        let changeTimer = null;
+        const inputs = [px1, py1, qx2, qy2, alphaDeg, v1Input, v2Input];
+        inputs.forEach(inp => {
+            inp.addEventListener('input', () => {
+                updateFormulaDisplay();
+                if (running) { fullReset(); }
+                else { clearTimeout(changeTimer); changeTimer = setTimeout(() => { fullReset(); }, 200); }
+            });
+        });
+
+        fullReset();
+    })();
+</script>
+</body>
+</html>
