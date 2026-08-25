@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>追线模拟 by Temi200</title>
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$','$$'], ['\\[','\\]']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" id="MathJax-script" async></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: #f4f7fc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .app {
+            background: white;
+            border-radius: 24px;
+            padding: 24px 28px 32px;
+            max-width: 1170px;
+            width: 100%;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+        }
+        h2 {
+            margin: 0 0 12px 0;
+            font-weight: 500;
+            color: #0f172a;
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            flex-wrap: wrap;
+        }
+        h2 small { font-size: 15px; font-weight: 370; color: #64748b; }
+        .layout {
+            display: grid;
+            grid-template-columns: 305px 1fr;
+            gap: 24px;
+        }
+        .panel {
+            background: #f8fafc;
+            border-radius: 18px;
+            padding: 16px 14px 18px;
+            border: 1px solid #e9edf2;
+        }
+        .field {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            gap: 4px;
+        }
+        .field label {
+            font-size: 13px;
+            font-weight: 530;
+            color: #1e293b;
+            min-width: 76px;
+        }
+        .field input {
+            width: 52px;
+            padding: 4px 6px;
+            border: 1px solid #d1d9e6;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            background: white;
+        }
+        .field input:focus {
+            border-color: #3b82f6;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+        }
+        .row-duo { display: flex; gap: 6px; }
+        .row-duo .field { flex: 1; }
+        .sep { border: none; border-top: 1px dashed #dce2ec; margin: 8px 0; }
+        .actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .actions button {
+            flex: 1;
+            border: none;
+            border-radius: 40px;
+            padding: 8px 12px;
+            font-weight: 510;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid #dce2ec;
+            background: white;
+            color: #1e293b;
+            transition: 0.1s;
+        }
+        .actions .primary { background: #2563eb; border-color: #2563eb; color: white; }
+        .actions .primary:hover { background: #1d4ed8; }
+        .actions .danger { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+        .info-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        .badge {
+            background: #eef2ff;
+            padding: 2px 14px;
+            border-radius: 40px;
+            color: #4338ca;
+            font-weight: 470;
+        }
+        .calc-box {
+            background: #f1f5f9;
+            border-left: 4px solid #3b82f6;
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+        .calc-box .big { font-size: 18px; font-weight: 690; color: #1d4ed8; }
+        .calc-box .sub { color: #64748b; font-size: 12px; }
+        .canvas-wrap {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid #eef2f6;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: #fcfdff;
+        }
+        .legend {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            margin-top: 8px;
+            color: #334155;
+        }
+        .legend i { font-style: normal; display: inline-flex; align-items: center; gap: 4px; }
+        .dot-red::before { content: "\25CF"; color: #dc2626; font-size: 16px; margin-right: 2px; }
+        .dot-blue::before { content: "\25CF"; color: #2563eb; font-size: 16px; margin-right: 2px; }
+        .line-red::before { content: "\2014"; color: #dc2626; font-weight: bold; font-size: 18px; }
+        .footnote {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #1e293b;
+            text-align: center;
+            border-top: 1px solid #ecf1f7;
+            padding-top: 14px;
+            line-height: 1.7;
+        }
+        .footnote strong { font-weight: 590; }
+        @media (max-width: 730px) {
+            .layout { grid-template-columns: 1fr; }
+            .app { padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <h2>追线模拟 <small>by Temi200</small></h2>
+    <div class="layout">
+        <div class="panel">
+            <div style="font-weight: 570; margin-bottom: 8px; color: #0f172a;">参数设定</div>
+            <div class="field"><label>P (x1, y1)</label> <input id="px1" value="-3" step="0.2"> <input id="py1" value="-2" step="0.2"></div>
+            <div class="field"><label>Q (x2, y2)</label> <input id="qx2" value="4" step="0.2"> <input id="qy2" value="3" step="0.2"></div>
+            <hr class="sep">
+            <div class="field"><label>alpha (方向)</label> <input id="alphaDeg" value="90" step="5" style="width:60px;"> <span style="font-size:13px;color:#475569;">deg</span></div>
+            <div class="row-duo">
+                <div class="field"><label>v1</label> <input id="v1" value="0.8" step="0.05"></div>
+                <div class="field"><label>v2</label> <input id="v2" value="1.4" step="0.05"></div>
+            </div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;">* v2 > v1 才能追上</div>
+            <div class="actions">
+                <button class="primary" id="startBtn">开始</button>
+                <button id="pauseBtn">暂停</button>
+                <button class="danger" id="resetBtn">重置</button>
+            </div>
+            <div class="info-line">
+                <span>时间 <strong id="timeDisp">0.00</strong> s</span>
+                <span class="badge" id="statusBadge">就绪</span>
+            </div>
+            <div class="calc-box">
+                <div>公式估算相遇时间</div>
+                <div class="big" id="formulaTime">--</div>
+                <div class="sub" id="formulaDetail">等待输入</div>
+            </div>
+        </div>
+        <div class="canvas-wrap">
+            <canvas id="canvas" width="980" height="980"></canvas>
+        </div>
+    </div>
+    <div class="legend">
+        <i class="dot-red">P (追逐者)</i>
+        <i class="dot-blue">Q (目标)</i>
+        <i class="line-red">P 轨迹</i>
+        <i>网格间距 1 单位</i>
+    </div>
+    <div class="footnote">
+        <strong>公式：</strong>
+        $$t = \frac{(v_2 - v_1 \cos(\alpha + \beta))\, d}{v_2^{\,2} - v_1^{\,2}}$$
+        其中
+        $$\beta = \pi - \arctan\!\left(\frac{y_Q - y_P}{x_Q - x_P}\right)$$
+    </div>
+</div>
+
+<script>
+(function(){
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const px1 = document.getElementById('px1'), py1 = document.getElementById('py1');
+    const qx2 = document.getElementById('qx2'), qy2 = document.getElementById('qy2');
+    const alphaDeg = document.getElementById('alphaDeg');
+    const v1Input = document.getElementById('v1'), v2Input = document.getElementById('v2');
+    const timeDisp = document.getElementById('timeDisp');
+    const statusBadge = document.getElementById('statusBadge');
+    const formulaTime = document.getElementById('formulaTime');
+    const formulaDetail = document.getElementById('formulaDetail');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    function read(id, def) { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? def : v; }
+
+    let animId = null, running = false, paused = false;
+    const RANGE = 10;
+    let viewOffset = { x: 0, y: 0 };
+    let targetOffset = { x: 0, y: 0 };
+    const EASE_SPEED = 0.09;
+
+    let state = {
+        p: { x: -3, y: -2 },
+        qInit: { x: 4, y: 3 },
+        v1: 0.8, v2: 1.4,
+        alphaRad: 90 * Math.PI / 180,
+        time: 0,
+        trail: [],
+        finished: false,
+        meetPoint: null
+    };
+
+    function getQ() {
+        return {
+            x: state.qInit.x + state.v1 * Math.cos(state.alphaRad) * state.time,
+            y: state.qInit.y + state.v1 * Math.sin(state.alphaRad) * state.time
+        };
+    }
+
+    function getBeta() {
+        const p = state.p, q = getQ();
+        return Math.PI - Math.atan2(q.y - p.y, q.x - p.x);
+    }
+
+    function calcFormula() {
+        const x1 = read('px1',-3), y1 = read('py1',-2), x2 = read('qx2',4), y2 = read('qy2',3);
+        const v1 = read('v1',0.8), v2 = read('v2',1.4);
+        const alpha = read('alphaDeg',90) * Math.PI / 180;
+        const dx = x1-x2, dy = y1-y2, d = Math.sqrt(dx*dx+dy*dy);
+        const beta = Math.PI - Math.atan2(y2-y1, x2-x1);
+        const denom = v2*v2 - v1*v1;
+        if (Math.abs(denom)<1e-12 || v2<=v1) return { t:null, betaDeg:beta*180/Math.PI, d, valid:false };
+        const t = (v2 - v1*Math.cos(alpha+beta)) * d / denom;
+        return { t, betaDeg:beta*180/Math.PI, d, valid:t>0 };
+    }
+
+    function updateFormula() {
+        const r = calcFormula();
+        if (r.valid && r.t!==null) {
+            formulaTime.textContent = r.t.toFixed(4) + ' s';
+            formulaDetail.textContent = 'beta0 = ' + r.betaDeg.toFixed(1) + ' deg,  d0 = ' + r.d.toFixed(3);
+        } else {
+            formulaTime.textContent = '无效';
+            formulaDetail.textContent = read('v2',1.4) <= read('v1',0.8) ? '需要 v2 > v1' : '参数导致 t <= 0';
+        }
+    }
+
+    function sync() {
+        state.p.x = read('px1',-3); state.p.y = read('py1',-2);
+        state.qInit.x = read('qx2',4); state.qInit.y = read('qy2',3);
+        state.v1 = read('v1',0.8); state.v2 = read('v2',1.4);
+        state.alphaRad = read('alphaDeg',90) * Math.PI / 180;
+    }
+
+    function fullReset() {
+        if (animId) { cancelAnimationFrame(animId); animId = null; }
+        running = false; paused = false;
+        sync();
+        state.time = 0;
+        state.trail = [{ x: state.p.x, y: state.p.y }];
+        state.finished = false; state.meetPoint = null;
+        viewOffset.x = 0; viewOffset.y = 0;
+        targetOffset.x = 0; targetOffset.y = 0;
+        timeDisp.textContent = '0.00';
+        statusBadge.textContent = '就绪';
+        statusBadge.style.background = '#eef2ff'; statusBadge.style.color = '#4338ca';
+        updateFormula();
+        draw();
+    }
+
+    function physics(dt) {
+        if (state.finished) return;
+        const p = state.p, q = getQ(), v2 = state.v2;
+        if (dt > 0.036) dt = 0.018;
+        const dx = q.x - p.x, dy = q.y - p.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 0.015) {
+            state.finished = true; state.meetPoint = { x:p.x, y:p.y };
+            statusBadge.textContent = '相遇';
+            statusBadge.style.background = '#d1fae5'; statusBadge.style.color = '#065f46';
+            return;
+        }
+        if (dist < 1e-12) return;
+        const ux = dx/dist, uy = dy/dist;
+        state.p.x += v2 * ux * dt;
+        state.p.y += v2 * uy * dt;
+        state.time += dt;
+        state.trail.push({ x:state.p.x, y:state.p.y });
+        if (state.trail.length > 40000) state.trail = state.trail.slice(-30000);
+        timeDisp.textContent = state.time.toFixed(2);
+        targetOffset.x = state.p.x;
+        targetOffset.y = state.p.y;
+    }
+
+    function draw() {
+        const W = canvas.width, H = canvas.height;
+        ctx.clearRect(0,0,W,H);
+        const scale = W / (RANGE*2);
+        const ox = W/2, oy = H/2;
+        const vx = viewOffset.x, vy = viewOffset.y;
+        const toC = (x,y) => [ox + (x - vx)*scale, oy - (y - vy)*scale];
+
+        ctx.strokeStyle = '#e9edf4'; ctx.lineWidth = 0.6;
+        for (let i=-RANGE*2; i<=RANGE*2; i++) {
+            if (i===0) continue;
+            const [cx] = toC(i,0); const [,cy] = toC(0,i);
+            if (cx > -10 && cx < W+10) { ctx.beginPath(); ctx.moveTo(cx,0); ctx.lineTo(cx,H); ctx.stroke(); }
+            if (cy > -10 && cy < H+10) { ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(W,cy); ctx.stroke(); }
+        }
+        ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1.2;
+        const [zx,zy] = toC(0,0);
+        ctx.beginPath(); ctx.moveTo(zx,0); ctx.lineTo(zx,H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,zy); ctx.lineTo(W,zy); ctx.stroke();
+
+        const p = state.p, q = getQ();
+        const d = Math.hypot(p.x-q.x, p.y-q.y);
+        const betaVal = getBeta();
+        const alphaVal = state.alphaRad;
+        const [pcx, pcy] = toC(p.x, p.y);
+        const [qcx, qcy] = toC(q.x, q.y);
+
+        if (state.trail.length > 1) {
+            ctx.beginPath(); ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 2.2; ctx.lineJoin='round'; ctx.lineCap='round';
+            const [sx,sy] = toC(state.trail[0].x, state.trail[0].y);
+            ctx.moveTo(sx,sy);
+            for (let i=1; i<state.trail.length; i++) {
+                const [cx,cy] = toC(state.trail[i].x, state.trail[i].y);
+                ctx.lineTo(cx,cy);
+            }
+            ctx.stroke();
+        }
+
+        const betaStart = Math.PI;
+        const betaEnd = -Math.atan2(q.y - p.y, q.x - p.x);
+        const betaR = 36;
+        ctx.save(); ctx.strokeStyle = '#059669'; ctx.lineWidth = 2.2;
+        const be1 = 75;
+        ctx.beginPath(); ctx.moveTo(pcx,pcy); ctx.lineTo(pcx+be1*Math.cos(betaStart), pcy+be1*Math.sin(betaStart)); ctx.stroke();
+        const be2 = Math.min(75, d*scale*0.5);
+        ctx.beginPath(); ctx.moveTo(pcx,pcy); ctx.lineTo(pcx+be2*Math.cos(betaEnd), pcy+be2*Math.sin(betaEnd)); ctx.stroke();
+        ctx.beginPath(); ctx.arc(pcx, pcy, betaR, betaStart, betaEnd, false); ctx.stroke();
+        ctx.restore();
+        const bm = (betaStart+betaEnd)/2;
+        ctx.fillStyle = '#059669'; ctx.font = 'bold 17px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('\u03B2', pcx+(betaR+15)*Math.cos(bm), pcy+(betaR+15)*Math.sin(bm));
+
+        const alphaStart = 0;
+        const alphaEnd = -alphaVal;
+        const alphaR = 34;
+        ctx.save(); ctx.strokeStyle = '#7c3aed'; ctx.lineWidth = 2.2;
+        const ae1 = 73;
+        ctx.beginPath(); ctx.moveTo(qcx,qcy); ctx.lineTo(qcx+ae1*Math.cos(alphaStart), qcy+ae1*Math.sin(alphaStart)); ctx.stroke();
+        const ae2 = 73;
+        ctx.beginPath(); ctx.moveTo(qcx,qcy); ctx.lineTo(qcx+ae2*Math.cos(alphaEnd), qcy+ae2*Math.sin(alphaEnd)); ctx.stroke();
+        ctx.beginPath(); ctx.arc(qcx, qcy, alphaR, alphaStart, alphaEnd, true); ctx.stroke();
+        ctx.restore();
+        const am = (alphaStart+alphaEnd)/2;
+        ctx.fillStyle = '#7c3aed'; ctx.font = 'bold 17px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('\u03B1', qcx+(alphaR+15)*Math.cos(am), qcy+(alphaR+15)*Math.sin(am));
+
+        ctx.save(); ctx.setLineDash([5,5]); ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(pcx,pcy); ctx.lineTo(qcx,qcy); ctx.stroke(); ctx.restore();
+        const mx=(pcx+qcx)/2, my=(pcy+qcy)/2;
+        ctx.fillStyle = '#d97706'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+        ctx.fillText('d = '+d.toFixed(2), mx, my-6);
+
+        const alen = 39;
+        const aex = qcx + alen*Math.cos(alphaVal), aey = qcy - alen*Math.sin(alphaVal);
+        ctx.save(); ctx.strokeStyle = '#7c3aed'; ctx.lineWidth = 2.6;
+        ctx.beginPath(); ctx.moveTo(qcx,qcy); ctx.lineTo(aex,aey); ctx.stroke();
+        const hl=10, ha=0.49; const ang = Math.atan2(-Math.sin(alphaVal), Math.cos(alphaVal));
+        ctx.beginPath(); ctx.moveTo(aex,aey); ctx.lineTo(aex-hl*Math.cos(ang-ha), aey-hl*Math.sin(ang-ha));
+        ctx.moveTo(aex,aey); ctx.lineTo(aex-hl*Math.cos(ang+ha), aey-hl*Math.sin(ang+ha)); ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = '#7c3aed'; ctx.font = 'italic 14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('v\u2081', aex+18*Math.cos(ang), aey+18*Math.sin(ang));
+
+        if (!state.finished && state.trail.length>1) {
+            const dxn = q.x-p.x, dyn = q.y-p.y; const dn = Math.hypot(dxn,dyn);
+            if (dn>0.024) {
+                const uxn=dxn/dn, uyn=dyn/dn;
+                const plen=34; const pex=pcx+plen*uxn, pey=pcy-plen*uyn;
+                ctx.save(); ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 2.6;
+                ctx.beginPath(); ctx.moveTo(pcx,pcy); ctx.lineTo(pex,pey); ctx.stroke();
+                const phl=9, pha=0.51; const pang=Math.atan2(-uyn,uxn);
+                ctx.beginPath(); ctx.moveTo(pex,pey); ctx.lineTo(pex-phl*Math.cos(pang-pha), pey-phl*Math.sin(pang-pha));
+                ctx.moveTo(pex,pey); ctx.lineTo(pex-phl*Math.cos(pang+pha), pey-phl*Math.sin(pang+pha)); ctx.stroke();
+                ctx.restore();
+                ctx.fillStyle = '#dc2626'; ctx.font = 'italic 14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.fillText('v\u2082', pex+18*Math.cos(pang), pey+18*Math.sin(pang));
+            }
+        }
+
+        ctx.shadowColor = 'rgba(220,38,38,0.23)'; ctx.shadowBlur = 18;
+        ctx.beginPath(); ctx.fillStyle = '#dc2626'; ctx.arc(pcx,pcy,11,0,2*Math.PI); ctx.fill();
+        ctx.shadowBlur = 0; ctx.strokeStyle = 'white'; ctx.lineWidth = 2.4; ctx.stroke();
+        ctx.fillStyle = 'white'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+        ctx.fillText('P', pcx, pcy-16);
+
+        ctx.shadowColor = 'rgba(37,99,235,0.21)'; ctx.shadowBlur = 18;
+        ctx.beginPath(); ctx.fillStyle = '#2563eb'; ctx.arc(qcx,qcy,11,0,2*Math.PI); ctx.fill();
+        ctx.shadowBlur = 0; ctx.strokeStyle = 'white'; ctx.lineWidth = 2.4; ctx.stroke();
+        ctx.fillStyle = 'white'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+        ctx.fillText('Q', qcx, qcy-16);
+
+        if (state.finished && state.meetPoint) {
+            const [mx2,my2] = toC(state.meetPoint.x, state.meetPoint.y);
+            ctx.beginPath(); ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 3; ctx.setLineDash([6,8]);
+            ctx.arc(mx2,my2,18,0,2*Math.PI); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+            ctx.fillText('相遇', mx2, my2+22);
+        }
+
+        ctx.fillStyle = '#1e293b'; ctx.font = '12px monospace'; ctx.textAlign='left'; ctx.textBaseline='top';
+        ctx.fillText('P (' + p.x.toFixed(2) + ', ' + p.y.toFixed(2) + ')', 12, 12);
+        ctx.fillStyle = '#2563eb'; ctx.fillText('Q (' + q.x.toFixed(2) + ', ' + q.y.toFixed(2) + ')', 12, 30);
+    }
+
+    function easeView() {
+        const dx = targetOffset.x - viewOffset.x;
+        const dy = targetOffset.y - viewOffset.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0.0005) {
+            viewOffset.x += dx * EASE_SPEED;
+            viewOffset.y += dy * EASE_SPEED;
+        } else {
+            viewOffset.x = targetOffset.x;
+            viewOffset.y = targetOffset.y;
+        }
+    }
+
+    let lastTs = 0;
+    function loop(ts) {
+        if (!running) return;
+        if (paused) { animId = requestAnimationFrame(loop); return; }
+        if (lastTs===0) lastTs = ts;
+        let dt = (ts-lastTs)/1000;
+        if (dt>0.027) dt=0.016;
+        if (dt<0.001) dt=0.013;
+        lastTs = ts;
+        const steps=3; const sub=dt/steps;
+        for (let i=0; i<steps; i++) { physics(sub); if (state.finished) break; }
+        easeView();
+        draw(); updateFormula();
+        if (!state.finished) { animId = requestAnimationFrame(loop); }
+        else { running=false; animId=null; draw(); updateFormula(); }
+    }
+
+    function startSim() {
+        if (running && !paused) return;
+        if (state.finished) { fullReset(); sync(); state.trail=[{x:state.p.x,y:state.p.y}]; draw(); }
+        if (!running) {
+            if (paused) { paused=false; lastTs=0; animId=requestAnimationFrame(loop); return; }
+            if (state.trail.length===0) state.trail.push({x:state.p.x,y:state.p.y});
+            targetOffset.x = state.p.x;
+            targetOffset.y = state.p.y;
+            running=true; paused=false; lastTs=0;
+            statusBadge.textContent = '运行中';
+            statusBadge.style.background = '#eef2ff'; statusBadge.style.color = '#4338ca';
+            animId = requestAnimationFrame(loop);
+        }
+    }
+    function pauseSim() {
+        if (!running) return;
+        paused = !paused;
+        if (paused) { statusBadge.textContent='暂停'; statusBadge.style.background='#fff3cd'; statusBadge.style.color='#856404'; }
+        else { statusBadge.textContent='运行中'; statusBadge.style.background='#eef2ff'; statusBadge.style.color='#4338ca'; lastTs=0; }
+    }
+
+    startBtn.addEventListener('click', startSim);
+    pauseBtn.addEventListener('click', pauseSim);
+    resetBtn.addEventListener('click', fullReset);
+
+    let timer = null;
+    const inps = [px1,py1,qx2,qy2,alphaDeg,v1Input,v2Input];
+    inps.forEach(el => el.addEventListener('input', ()=>{
+        updateFormula();
+        if (running) { fullReset(); }
+        else { clearTimeout(timer); timer = setTimeout(()=>fullReset(), 140); }
+    }));
+
+    fullReset();
+})();
+</script>
+</body>
+</html>
